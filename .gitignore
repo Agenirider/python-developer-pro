@@ -1,0 +1,8 @@
+hw_1/homework
+.idea
+hw_1/log_analyzer/.idea
+hw_1/log_analyzer/log/nginx-access-ui.log-20201128
+hw_1/performer.log
+hw_1/log_analyzer/reports
+hw_1/log_analyzer/tmp
+__pycache__
