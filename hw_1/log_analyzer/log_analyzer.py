@@ -24,7 +24,6 @@ arg_parser.add_argument('--config',
 
 args = arg_parser.parse_args()
 
-REPORT_RESULT = []
 
 config = configparser.RawConfigParser()
 
@@ -41,17 +40,24 @@ logging.basicConfig(format='%(levelname)-8s[%(asctime)s] %(message)s',
 
 class LogPerformerThread(Thread):
 
-    def __init__(self, arr, source):
+    def __init__(self, arr, source, thread_index):
         Thread.__init__(self)
         self.arr = arr
+        self.name = thread_index
         self.source = source
+        self._return = None
+        logger('info', f'INIT THREAD { self.name }')
 
     def run(self):
-        url_performer(self.arr, self.source)
+        self._return = url_performer(self.arr, self.source)
 
-    # def join(self):
-    #     Thread.join(self)
-    #     return self._return
+    def join(self):
+        Thread.join(self)
+        return None
+
+    def get(self):
+        logger('info', f'THREAD: { self.name } finished, result len -> { len(self._return) }', )
+        return self._return
 
 
 def logger(level, event):
@@ -150,6 +156,8 @@ def log_parser(data):
 
 
 def log_performer(source, threads):
+    RESULT = []
+
     URLS_SET = set()
 
     for url in source:
@@ -163,23 +171,42 @@ def log_performer(source, threads):
     URLS_PART = parting(list(URLS_SET), threads)
     logger('info', f'Threads - {len(URLS_PART)} are running')
 
+    threads = []
+
     for arr in URLS_PART:
-        my_thread = LogPerformerThread(arr, source)
-        my_thread.start()
+        thread = LogPerformerThread(arr, source, URLS_PART.index(arr))
+        threads.append(thread)
+
+    for i in threads:
+        i.start()
+
+    for i in threads:
+        i.join()
+        res = i.get()
+        RESULT += res
+
+    return RESULT
 
 
 def url_performer(arr, source):
     LEN_SOURCE_URL = len(source)
     ALL_TIME_URL = sum([x[1] for x in source])
-
+    RESULT = []
     iterator = iter(arr)
+
+    def create_source_iterator():
+        for element in source[0:2000]:
+            yield element
 
     while True:
         try:
             url = next(iterator)
             time_data = []
 
-            for el in source:
+            source_iter = create_source_iterator()
+
+            for el in source_iter:
+                # for el in source[0:10000]:
                 if el[0] == url:
                     time_data.append(el[1])
 
@@ -193,10 +220,13 @@ def url_performer(arr, source):
                    'time_med': round(median(time_data) if len(time_data) > 0 else 0, 4)
                    }
 
-            REPORT_RESULT.append(res)
+            # REPORT_RESULT.append(res)
+            RESULT.append(res)
 
         except StopIteration:
             break
+
+    return RESULT
 
 
 def file_writer(report_result, configurations, file_name_data):
@@ -246,14 +276,14 @@ def main():
 
             # Parsing rows
             parsed_rows = log_parser(data)
-            log_performer(parsed_rows, os.cpu_count())
+            result = log_performer(parsed_rows, os.cpu_count())
 
             logger('info', 'Sorting result')
-            REPORT_RESULT.sort(key=operator.itemgetter('time_sum'))
+            result.sort(key=operator.itemgetter('time_sum'))
 
             rep_size = config.get("DEFAULT", "REPORT_SIZE")
-            res = REPORT_RESULT[(-1 * int(rep_size)):]
-            logger('info', f'Write to the html file result {len(REPORT_RESULT)}')
+            res = result[(-1 * int(rep_size)):]
+            logger('info', f'Write to the html file result {len(result)}')
 
             file_writer(res[::-1], config, file_name_data)
 
