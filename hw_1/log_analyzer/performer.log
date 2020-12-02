@@ -1,6 +1,0 @@
-INFO    [2020-12-01 07:34:19,419] Start process Tue Dec  1 07:34:19 2020
-INFO    [2020-12-01 07:34:19,421] Log file is nginx-access-ui.log-20201201
-INFO    [2020-12-01 07:34:20,383] Plain Log file contains data => 576207093
-ERROR   [2020-12-01 07:34:34,442] Unexpected row`s format EMPTY ROW
-INFO    [2020-12-01 07:34:34,442] Parsing result: ordinary rows - 2613775, unexpected format - 1, percentage 0.0
-INFO    [2020-12-01 07:34:35,739] Threads - 8 are running
