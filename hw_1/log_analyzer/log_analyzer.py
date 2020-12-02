@@ -8,8 +8,6 @@ import logging
 import time
 import argparse
 import shutil
-from threading import Thread
-from math import ceil
 from statistics import median
 import operator
 from datetime import datetime
@@ -17,13 +15,13 @@ import configparser
 import json
 from template import REPORT_TEMPLATE
 
+
 arg_parser = argparse.ArgumentParser(description='Set way to specific config file')
 arg_parser.add_argument('--config',
                         type=str,
                         help='Way to specific config file')
 
 args = arg_parser.parse_args()
-
 
 config = configparser.RawConfigParser()
 
@@ -36,28 +34,6 @@ else:
 logging.basicConfig(format='%(levelname)-8s[%(asctime)s] %(message)s',
                     filename=config.get("DEFAULT", "LOG_FILE"),
                     level=logging.INFO)
-
-
-class LogPerformerThread(Thread):
-
-    def __init__(self, arr, source, thread_index):
-        Thread.__init__(self)
-        self.arr = arr
-        self.name = thread_index
-        self.source = source
-        self._return = None
-        logger('info', f'INIT THREAD { self.name }')
-
-    def run(self):
-        self._return = url_performer(self.arr, self.source)
-
-    def join(self):
-        Thread.join(self)
-        return None
-
-    def get(self):
-        logger('info', f'THREAD: { self.name } finished, result len -> { len(self._return) }', )
-        return self._return
 
 
 def logger(level, event):
@@ -155,76 +131,38 @@ def log_parser(data):
     return URLS
 
 
-def log_performer(source, threads):
+def log_performer(source):
     RESULT = []
+
+    LEN_SOURCE_URL = len(source)
 
     URLS_SET = set()
 
     for url in source:
         URLS_SET.add(url[0])
 
-    # STOLEN
-    def parting(xs, parts):
-        part_len = ceil(len(xs) / parts)
-        return [xs[part_len * k:part_len * (k + 1)] for k in range(parts)]
+    URLS = {x: [] for x in list(URLS_SET)}
 
-    URLS_PART = parting(list(URLS_SET), threads)
-    logger('info', f'Threads - {len(URLS_PART)} are running')
+    for x in source:
+        url, request_time = x
+        data_set = URLS[url]
+        data_set.append(request_time)
+        URLS[url] = data_set
 
-    threads = []
+    ALL_TIME_URL = sum([sum([float(y) for y in x[1]]) for x in URLS.items()])
 
-    for arr in URLS_PART:
-        thread = LogPerformerThread(arr, source, URLS_PART.index(arr))
-        threads.append(thread)
-
-    for i in threads:
-        i.start()
-
-    for i in threads:
-        i.join()
-        res = i.get()
-        RESULT += res
-
-    return RESULT
-
-
-def url_performer(arr, source):
-    LEN_SOURCE_URL = len(source)
-    ALL_TIME_URL = sum([x[1] for x in source])
-    RESULT = []
-    iterator = iter(arr)
-
-    def create_source_iterator():
-        for element in source[0:2000]:
-            yield element
-
-    while True:
-        try:
-            url = next(iterator)
-            time_data = []
-
-            source_iter = create_source_iterator()
-
-            for el in source_iter:
-                # for el in source[0:10000]:
-                if el[0] == url:
-                    time_data.append(el[1])
-
-            res = {'url': url,
-                   'count': len(time_data),
-                   'count_perc': round((len(time_data) / LEN_SOURCE_URL) * 100, 4),
-                   'time_sum': round(sum(time_data), 4),
-                   'time_perc': round((round(sum(time_data), 4) / ALL_TIME_URL) * 100, 4),
-                   'time_avg': round(round(sum(time_data), 4) / LEN_SOURCE_URL, 4),
-                   'max_time': max(time_data, key=lambda i: float(i)) if len(time_data) > 0 else 0,
-                   'time_med': round(median(time_data) if len(time_data) > 0 else 0, 4)
-                   }
-
-            # REPORT_RESULT.append(res)
-            RESULT.append(res)
-
-        except StopIteration:
-            break
+    for url in URLS.items():
+        url, time_data = url
+        res = {'url': url,
+               'count': len(time_data),
+               'count_perc': round((len(time_data) / LEN_SOURCE_URL) * 100, 4),
+               'time_sum': round(sum(time_data), 4),
+               'time_perc': round((round(sum(time_data), 4) / ALL_TIME_URL) * 100, 4),
+               'time_avg': round(round(sum(time_data), 4) / LEN_SOURCE_URL, 4),
+               'max_time': max(time_data, key=lambda i: float(i)) if len(time_data) > 0 else 0,
+               'time_med': round(median(time_data) if len(time_data) > 0 else 0, 4)
+               }
+        RESULT.append(res)
 
     return RESULT
 
@@ -267,7 +205,6 @@ def main():
 
     try:
         if file is not None:
-
             # Copy file to TMP dir
             shutil.copyfile(f'{config.get("DEFAULT", "LOG_DIR")}/{file}', f'{config.get("DEFAULT", "TMP_DIR")}/{file}')
 
@@ -276,14 +213,16 @@ def main():
 
             # Parsing rows
             parsed_rows = log_parser(data)
-            result = log_performer(parsed_rows, os.cpu_count())
+            result = log_performer(parsed_rows)
+
+            REPORT_RESULT = log_performer(parsed_rows)
 
             logger('info', 'Sorting result')
-            result.sort(key=operator.itemgetter('time_sum'))
+            REPORT_RESULT.sort(key=operator.itemgetter('time_sum'))
 
             rep_size = config.get("DEFAULT", "REPORT_SIZE")
-            res = result[(-1 * int(rep_size)):]
-            logger('info', f'Write to the html file result {len(result)}')
+            res = REPORT_RESULT[(-1 * int(rep_size)):]
+            logger('info', f'Write to the html file result {len(REPORT_RESULT)}')
 
             file_writer(res[::-1], config, file_name_data)
 
@@ -291,7 +230,6 @@ def main():
             # register_writer(FILE_NAME_DATA)
 
             tmp_cleaner(config)
-
         else:
             logger('error', "File parser error")
 
@@ -303,3 +241,4 @@ if __name__ == "__main__":
     logger('info', f"Start process {time.ctime()}")
     main()
     logger('info', f"End process {time.ctime()}\n\n")
+
