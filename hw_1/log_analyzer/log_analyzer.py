@@ -4,7 +4,6 @@
 import gzip
 import re
 import os
-import logging
 import time
 import argparse
 import shutil
@@ -14,6 +13,8 @@ from datetime import datetime
 import configparser
 import json
 from template import REPORT_TEMPLATE
+import logging
+
 
 
 arg_parser = argparse.ArgumentParser(description='Set way to specific config file')
@@ -29,12 +30,15 @@ if args.config:
     config.read(args.config)
 else:
     cur_dir = os.getcwd()
-    config.read(f'{cur_dir}/config.ini')
+    full_path = f'{cur_dir}\\hw_1\\config.ini'
+    config.read(full_path)
 
-logging.basicConfig(format='%(levelname)-8s[%(asctime)s] %(message)s',
+formatter = logging.Formatter("%(asctime)s;%(levelname)s;%(message)s",
+                              "%y.%m.%d %h:%m:%s")
+
+logging.basicConfig(format=formatter,
                     filename=config.get("DEFAULT", "LOG_FILE"),
                     level=logging.INFO)
-
 
 def logger(level, event):
     if level == 'error':
@@ -47,24 +51,8 @@ def logger(level, event):
         logging.info(event)
 
 
-def gzip_unpacker(directory, file):
-    full_file_path = (f'{directory}/{file}' if directory is not None else file)
-
-    try:
-        with gzip.open(full_file_path, 'rb') as file:
-            result = file.read()
-            logger('info', f"ZIP Log file contains data => {len(result)}")
-            return result.decode('utf-8').split('\n')
-
-    except gzip.BadGzipFile:
-        with open(full_file_path, 'rb') as file:
-            result = file.read()
-            logger('info', f"Plain Log file contains data => {len(result)}")
-            return result.decode('utf-8').split('\n')
-
-
 def log_finder(configurations):
-    # LOG_SIGNATURE = "nginx-access-ui.log",
+    """  Required log signatures - nginx-access-ui.log """
 
     current_date = datetime.today().strftime('%Y%m%d')
     file_signature = 'nginx-access-ui.log-' + current_date
@@ -89,12 +77,12 @@ def log_finder(configurations):
                 return logs, current_date
 
             except IndexError:
-                ''' No log files '''
+                #  No log files
                 logger('error', "No log files for %s" % current_date)
                 return None, None
 
         except FileNotFoundError:
-            ''' No log folder '''
+            #  No log folder
             logger('error', "Log folder not found")
 
 
@@ -113,8 +101,8 @@ def log_parser(data):
     count_all = 0
     count_err = 0
 
-    for r in rows:
-        split_row = r.split(' ')
+    for row in rows:
+        split_row = row.split(' ')
         count_all += 1
         try:
             url, request_time = split_row[7], split_row[-1]
@@ -143,8 +131,8 @@ def log_performer(source):
 
     URLS = {x: [] for x in list(URLS_SET)}
 
-    for x in source:
-        url, request_time = x
+    for parsed_log_string in source:
+        url, request_time = parsed_log_string
         data_set = URLS[url]
         data_set.append(request_time)
         URLS[url] = data_set
@@ -160,7 +148,7 @@ def log_performer(source):
                'time_perc': round((round(sum(time_data), 4) / ALL_TIME_URL) * 100, 4),
                'time_avg': round(round(sum(time_data), 4) / LEN_SOURCE_URL, 4),
                'max_time': max(time_data, key=lambda i: float(i)) if len(time_data) > 0 else 0,
-               'time_med': round(median(time_data) if len(time_data) > 0 else 0, 4)
+               'time_med': round(median(time_data) if len(time_data) > 0 else 0, 4),
                }
         RESULT.append(res)
 
@@ -177,44 +165,20 @@ def file_writer(report_result, configurations, file_name_data):
         html_file.write(html_template)
 
 
-def register_writer(result_status):
-    try:
-        with open('./register', 'w') as f:
-            f.writelines(result_status)
-
-    except FileNotFoundError:
-        logger('error', f'NOT FOUND REGISTER FILE FOR WRITING')
-
-
-def register_reader():
-    try:
-        with open('./register', 'r') as file:
-            res = file.readlines()
-            return res[0]
-
-    except FileNotFoundError:
-        logger('error', f'NOT FOUND REGISTER FILE FOR READING')
-
-    except IndexError:
-        ''' Register file is empty '''
-        return ''
-
-
 def main():
     file, file_name_data = log_finder(config)
 
     try:
         if file is not None:
             # Copy file to TMP dir
-            shutil.copyfile(f'{config.get("DEFAULT", "LOG_DIR")}/{file}', f'{config.get("DEFAULT", "TMP_DIR")}/{file}')
+            shutil.copyfile(f'{config.get("DEFAULT", "LOG_DIR")}/{file}',
+                            f'{config.get("DEFAULT", "TMP_DIR")}/{file}')
 
             # Unpacking the log file
             data = gzip_unpacker(config.get("DEFAULT", "TMP_DIR"), file)
 
             # Parsing rows
             parsed_rows = log_parser(data)
-            result = log_performer(parsed_rows)
-
             REPORT_RESULT = log_performer(parsed_rows)
 
             logger('info', 'Sorting result')
@@ -226,8 +190,7 @@ def main():
 
             file_writer(res[::-1], config, file_name_data)
 
-            # COMMENT THIS WHEN TESTING
-            # register_writer(FILE_NAME_DATA)
+            register_writer(file_name_data if not config.get("DEFAULT", "DEBUG") else False)
 
             tmp_cleaner(config)
         else:
