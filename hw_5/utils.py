@@ -130,7 +130,7 @@ def type_file_encoder(type_file):
     if type_file == "html":
         return "text/html"
     elif type_file == "txt":
-        return "text/html"
+        return "text/plain"
     elif type_file == "css":
         return "text/css"
     elif type_file == "js":
