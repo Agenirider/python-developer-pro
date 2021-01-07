@@ -7,14 +7,15 @@ r = redis.Redis()
 
 
 def get_score(store, phone, email, birthday=None, gender=None, first_name=None, last_name=None):
+
     key_parts = [
         first_name or "",
         last_name or "",
         phone or "",
-        birthday.strftime("%Y%m%d") if birthday is not None else "",
+        birthday if birthday is not None else "",
     ]
 
-    encoded_key_parts = b','.join([part.encode('utf-8') for part in key_parts])
+    encoded_key_parts = b','.join([str(part).encode('utf-8') for part in key_parts])
     key = "uid:" + hashlib.md5(encoded_key_parts).hexdigest()
 
     cashed_data = store.get(key)
