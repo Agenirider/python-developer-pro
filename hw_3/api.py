@@ -1,21 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import abc
-import json
 import datetime
-import logging
 import hashlib
-import uuid
-from optparse import OptionParser
-from http.server import BaseHTTPRequestHandler, HTTPServer
-import re
-import datetime
+import json
+import logging
 import traceback
+import uuid
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from optparse import OptionParser
 
+from config import DEBUG
 from scoring import get_score, get_interests
-
-from config import DEBUG 
+from utils import date_checker, email_checker
 
 SALT = "Otus"
 ADMIN_LOGIN = "admin"
@@ -48,7 +45,7 @@ class CharField(object):
 
     def __init__(self, name, required, nullable):
         self.name = "_" + name
-        self.default = None 
+        self.default = None
         self.required = required
         self.nullable = nullable
 
@@ -61,17 +58,12 @@ class CharField(object):
 
         if value is not None:
             if isinstance(value, str):
-                setattr(instance, self.name, value) 
+                setattr(instance, self.name, value)
             else:
-                setattr(instance, self.name, '')  
+                setattr(instance, self.name, '')
         else:
-            setattr(instance, self.name, None)               
+            setattr(instance, self.name, None)
 
-
-
-    def __delete__(self,instance):
-        raise AttributeError("Can't delete attribute")
- 
 
 class EmailField(CharField):
 
@@ -87,15 +79,12 @@ class EmailField(CharField):
     def __set__(self, instance, value):
         if not hasattr(self, self.name):
 
-            # check - value is email with @
+            # check - value is email with @ and mathc with regexp
 
-            if value is not None and len(re.findall('@', value)) == 1:
+            if value is not None and email_checker(value) is not None:
                 setattr(instance, self.name, value)
-            else: 
+            else:
                 setattr(instance, self.name, self.default)
-
-    def __delete__(self, instance):
-        raise AttributeError("Can't delete attribute")
 
 
 class PhoneField(object):
@@ -111,20 +100,15 @@ class PhoneField(object):
 
     def __set__(self, instance, value):
         if not hasattr(self, self.name):
-            if value is not None:
+            if value is not None and value != '':
                 str_val = str(value)
                 first_digit = str_val[0]
                 if len(str_val) == 11 and first_digit == '7':
                     setattr(instance, self.name, value)
-
                 else:
                     setattr(instance, self.name, self.default)
-
             else:
                 setattr(instance, self.name, value)
-
-    def __delete__(self, instance):
-        raise AttributeError("Can't delete attribute")
 
 
 class BirthDayField(object):
@@ -142,31 +126,16 @@ class BirthDayField(object):
 
             value = value or self.default
 
+            is_correct_date = date_checker(value)
+
             if value is not None:
-                try:
-                    date_sign = re.match(r'\d{2}.\d{2}.\d{4}', value).group(0)
-                    birthday_day, birthday_month, birthday_year = date_sign.split('.')
-
-                    now = datetime.datetime.now()
-
-                    current_year = now.year
-
-                    if (current_year - int(birthday_year)) < 70:
-
-                        setattr(instance, self.name, '.'.join([birthday_day, birthday_month, birthday_year]))
-
-                    else:
-                        # User too old :( for this scoring API
-                        setattr(instance, self.name, '')
-
-                except (AttributeError, TypeError):
+                if is_correct_date:
+                    setattr(instance, self.name, value)
+                else:
+                    # User too old :( for this scoring API
                     setattr(instance, self.name, '')
-            
             else:
                 setattr(instance, self.name, None)
-
-    def __delete__(self, instance):
-        raise AttributeError("Can't delete attribute")
 
 
 class GenderField(object):
@@ -184,7 +153,7 @@ class GenderField(object):
         if not hasattr(self, self.name):
             if value is not None:
 
-                if value in [0,1,2]:
+                if value in [0, 1, 2]:
                     setattr(instance, self.name, value)
                 else:
                     setattr(instance, self.name, self.default)
@@ -198,23 +167,22 @@ class GenderField(object):
 class ClientIDsField(object):
     def __init__(self, name, required):
         self.name = "_" + name
-        self.default = None 
+        self.default = None
         self.required = required
 
     def __get__(self, instance, cls):
         return getattr(instance, self.name)
 
-
     def __set__(self, instance, values):
 
         values = values or self.default
-   
+
         if isinstance(values, list):
             if self.required:
                 if values is not None:
-                    is_digits = list({ True if isinstance(d, int) else False for d in values })
+                    is_digits = list({True if isinstance(d, int) else False for d in values})
                     if len(is_digits) == 1 and True in is_digits:
-                        setattr(instance, self.name, values) 
+                        setattr(instance, self.name, values)
                     else:
                         setattr(instance, self.name, self.default)
                 else:
@@ -224,7 +192,7 @@ class ClientIDsField(object):
         else:
             setattr(instance, self.name, self.default)
 
-    def __delete__(self,instance):
+    def __delete__(self, instance):
         raise AttributeError("Can't delete attribute")
 
 
@@ -238,59 +206,24 @@ class DateField(object):
     def __get__(self, instance, cls):
         return getattr(instance, self.name)
 
-    def date_checker(self, date_string):
-        try:
-            date_sign = re.match(r'\d{2}.\d{2}.\d{4}', date_string).group(0)
-
-            parsed_date = re.findall(r'\d+', date_sign)
-
-            date_parts_checked_set = set()
-            day, month, year = map(int, parsed_date)
-                
-            if 0 < day < 31:
-                date_parts_checked_set.add(True)
-            else:
-                date_parts_checked_set.add(False)
-
-            if 0 < month < 13:
-                date_parts_checked_set.add(True)
-            else:
-                date_parts_checked_set.add(False)
-
-            if year > 2015:
-                date_parts_checked_set.add(True)
-            else:
-                date_parts_checked_set.add(False)
-            
-            if True in list(date_parts_checked_set) and len(date_parts_checked_set) == 1:
-                return True
-            else:
-                return False
-
-        except AttributeError:
-            return False
-
     def __set__(self, instance, value):
         if not hasattr(self, self.name):
             if self.required:
-                if value is not None and self.date_checker(value):
+                if value is not None and date_checker(value):
                     setattr(instance, self.name, value)
 
                 elif value is None:
                     setattr(instance, self.name, None)
-                
+
             else:
                 if value is not None:
-                    if self.date_checker(value):
+                    if date_checker(value):
                         setattr(instance, self.name, value)
                     else:
                         setattr(instance, self.name, '')
-                
+
                 elif value is None:
                     setattr(instance, self.name, self.default)
-
-    def __delete__(self, instance):
-        raise AttributeError("Can't delete attribute")
 
 
 class ClientsInterestsRequest(object):
@@ -304,11 +237,7 @@ class ClientsInterestsRequest(object):
     def __get__(self, instance, cls):
         return getattr(instance, self.name)
 
-    def hasCorrectDate(self):
-        if self.date is not None and self.date != '':
-            return True
-
-    def hasClientsIds(self):
+    def has_clients_Ids(self):
         if hasattr(self, 'client_ids'):
             if self.client_ids is not None and len(self.client_ids) > 0:
                 return True
@@ -317,19 +246,15 @@ class ClientsInterestsRequest(object):
         else:
             return False
 
-    def getInterests(self):
+    def get_interests(self):
 
-        if self.hasClientsIds(): 
-            if self.hasCorrectDate() and self.date :
+        if self.has_clients_Ids():
+            if self.date or self.date is None:
                 return {str(client_id): get_interests(client_id) for client_id in self.client_ids}, 200
-
-            elif self.date is None:
-                return {str(client_id): get_interests(client_id) for client_id in self.client_ids}, 200
-
             else:
-                return {"error": ERRORS[INVALID_REQUEST] }, 422
+                return {"error": ERRORS[INVALID_REQUEST]}, 422
         else:
-            return {"error": ERRORS[INVALID_REQUEST] }, 422
+            return {"error": ERRORS[INVALID_REQUEST]}, 422
 
 
 class OnlineScoreRequest(object):
@@ -348,40 +273,39 @@ class OnlineScoreRequest(object):
         self.birthday = birthday
         self.gender = gender
 
-    def hasPhoneEmailFields(self):
-        return True if self.phone != None and self.email != None else False
-            
-    def hasFirstLastNameFields(self):
-        return True if self.last_name != None and self.first_name != None  else False
-            
-    def hasGenderBirthdayFields(self):
-        return True if self.gender != None and self.birthday != '' else False
-            
-    def getScore(self):
+    def has_phone_email_fields(self):
+        return True if self.phone is not None and self.email is not None else False
+
+    def has_first_last_name_fields(self):
+        return True if self.last_name is not None and self.first_name is not None else False
+
+    def has_gender_birthday_fields(self):
+        return True if self.gender is not None and self.birthday != '' else False
+
+    def get_score(self):
 
         # Check we have correct arguments != '' 
-        is_correct_values =  { False if self.__dict__[key] in [''] else True for key in [*self.__dict__] }
-      
+        is_correct_values = {False if self.__dict__[key] in [''] else True for key in [*self.__dict__]}
+
         if len(is_correct_values) == 1 and True in is_correct_values:
 
-            if self.hasPhoneEmailFields():
-                return { 'score': get_score(self.phone, self.email) },  200
+            if self.has_phone_email_fields():
+                return {'score': get_score(self.phone, self.email)}, 200
 
-            if self.hasFirstLastNameFields():
-                return { 'score': get_score(None, None, last_name=self.last_name, first_name=self.first_name) }, 200
+            if self.has_first_last_name_fields():
+                return {'score': get_score(None, None, last_name=self.last_name, first_name=self.first_name)}, 200
 
-            if self.hasGenderBirthdayFields():
-                return { 'score': get_score(None, None, gender=self.gender, birthday=self.birthday) },  200
+            if self.has_gender_birthday_fields():
+                return {'score': get_score(None, None, gender=self.gender, birthday=self.birthday)}, 200
 
             else:
-                return {"error": ERRORS[INVALID_REQUEST] }, 422
+                return {"error": ERRORS[INVALID_REQUEST]}, 422
 
-        else: 
-            return {"error": ERRORS[INVALID_REQUEST] }, 422
+        else:
+            return {"error": ERRORS[INVALID_REQUEST]}, 422
 
 
 class MethodRequest(object):
-
     account = CharField('account', required=False, nullable=True)
     login = CharField('login', required=True, nullable=True)
     token = CharField('token', required=True, nullable=True)
@@ -399,7 +323,7 @@ class MethodRequest(object):
 
 
 def hash_encoder(arr):
-    return  b''.join([x.encode('utf-8') for x in arr])
+    return b''.join([x.encode('utf-8') for x in arr])
 
 
 def check_auth(account_request):
@@ -412,7 +336,7 @@ def check_auth(account_request):
 
     elif not user_is_admin:
 
-        hash_parts = [account_request.account, account_request.login, SALT ]
+        hash_parts = [account_request.account, account_request.login, SALT]
         digest = hashlib.sha512(hash_encoder(hash_parts)).hexdigest()
 
     if digest == account_request.token:
@@ -421,22 +345,53 @@ def check_auth(account_request):
     return False
 
 
-def method_handler(request, ctx, store):
+def request_handler(account_request, request_args, ctx):
 
+    if account_request.method == 'online_score' and account_request.login != 'admin':
+        requires_fields = ['phone', 'email', 'first_name', 'last_name', 'birthday', 'gender']
+        attrs = [request_args[x] if x in [*request_args] else None for x in requires_fields]
+        score = OnlineScoreRequest(*attrs)
+
+        # UPDATE CONTEXT HAS
+        ctx.update({'has': [attr for attr in requires_fields if attr in [*request_args]]})
+
+        result = score.get_score()
+
+        return result, ctx
+
+    elif account_request.method == 'online_score' and account_request.login == 'admin':
+        return {'score': 42}, OK
+
+    elif account_request.method == 'clients_interests':
+        requires_fields = ['client_ids', 'date']
+        attrs = [request_args[x] if x in [*request_args] else None for x in requires_fields]
+        interests = ClientsInterestsRequest(*attrs)
+
+        # UPDATE CONTEXT nclients
+        ctx.update({'nclients': len(interests.client_ids) if interests.client_ids is not None else 0})
+
+        interests_result = interests.get_interests()
+
+        return interests_result, ctx
+
+    else:
+        # Unknown method
+        raise AttributeError('Unknown method')
+
+
+def method_handler(request, ctx, store):
     params = request['body']
 
     try:
         request_args = request['body']['arguments']
     except KeyError:
-        return {"error": ERRORS[INVALID_REQUEST] }, 422 
-
+        return {"error": ERRORS[INVALID_REQUEST]}, 422
 
     requires_fields = ['account', 'login', 'token', 'method']
 
     for field in requires_fields:
         if field not in [*params]:
-            return {"error": ERRORS[INVALID_REQUEST] }, 422 
-
+            return {"error": ERRORS[INVALID_REQUEST]}, 422
 
     account_request = MethodRequest(params['account'],
                                     params['login'],
@@ -444,53 +399,21 @@ def method_handler(request, ctx, store):
                                     params['method'])
 
     if not check_auth(account_request):
-        return {"error": ERRORS[FORBIDDEN] }, FORBIDDEN
+        return {"error": ERRORS[FORBIDDEN]}, FORBIDDEN
 
     elif check_auth(account_request) and account_request.login == 'admin':
-        return { 'score': 42 }, OK 
-    
+        return {'score': 42}, OK
+
     elif not check_auth(account_request) and account_request.login == 'admin':
-        return {"error": ERRORS[FORBIDDEN] }, FORBIDDEN
+        return {"error": ERRORS[FORBIDDEN]}, FORBIDDEN
 
     else:
-
-        if account_request.method == 'online_score' and account_request.login != 'admin':
-            requires_fields = ['phone', 'email', 'first_name', 'last_name','birthday','gender']
-            attrs = [request_args[x] if x in [*request_args] else None for x in requires_fields]
-            score = OnlineScoreRequest(*attrs)
-
-            # UPDATE CONTEXT HAS  
-            ctx.update({'has': [ attr for attr in requires_fields if attr in [*request_args]]})
-
-            result = score.getScore()
-            
-            return result
-
-
-        elif account_request.method == 'online_score' and account_request.login == 'admin':
-            return { 'score': 42 }, OK 
-
-        elif account_request.method == 'clients_interests':
-            requires_fields = ['client_ids', 'date']
-            attrs = [request_args[x] if x in [*request_args] else None for x in requires_fields]
-            interests = ClientsInterestsRequest(*attrs)  
-
-            # UPDATE CONTEXT nclients
-            ctx.update({'nclients': len(interests.client_ids) if interests.client_ids is not None else 0})
-
-            interests_result = interests.getInterests()
-
-            return  interests_result
-
-
-        else:
-            # Unknown method
-            raise AttributeError('Unknown method')
-    
+        result, ctx = request_handler(account_request, request_args, ctx)
+        return result
 
 
 class MainHTTPHandler(BaseHTTPRequestHandler):
-    '''Method -> this is an URL like in http://localhost:8080/method '''
+    """Method -> this is an URL like in http://localhost:8080/method """
 
     router = {
         "method": method_handler
@@ -521,18 +444,18 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
             if path in self.router:
                 try:
                     response, code = self.router[path]({"body": request, "headers": self.headers}, context, self.store)
-                    
+
                 except AttributeError:
                     logging.error('Unexpected error - Invalid request')
                     code = INVALID_REQUEST
 
                 except Exception as e:
-                    logging.error(f'Unexpected error -> { traceback.format_exc() }') if DEBUG else logging.error(f'Unexpected error -> {e}')
+                    logging.error(f'Unexpected error -> {traceback.format_exc()}') if DEBUG else logging.error(
+                        f'Unexpected error -> {e}')
                     code = INTERNAL_ERROR
 
             else:
                 code = NOT_FOUND
-
 
         # ADD RESP CODE
         self.send_response(code)
