@@ -1,24 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# import abc
-import json
-
-# import datetime
-import logging
-import hashlib
-import uuid
-from optparse import OptionParser
-from http.server import BaseHTTPRequestHandler, HTTPServer
-import re
 import datetime
+import hashlib
+import json
+import logging
+import re
 import traceback
-
-from scoring import get_score, get_interests
+import uuid
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from optparse import OptionParser
 
 from config import DEBUG
-
-import redis
+from scoring import get_score, get_interests
 
 SALT = "Otus"
 ADMIN_LOGIN = "admin"
@@ -324,14 +318,14 @@ class ClientsInterestsRequest(object):
         else:
             return False
 
-    def getInterests(self, store, client_ids):
+    def getInterests(self, client_ids):
 
         if self.hasClientsIds():
             if self.hasCorrectDate() and self.date:
-                return get_interests(store, client_ids), 200
+                return get_interests(client_ids), 200
 
             elif self.date is None:
-                return get_interests(store, client_ids), 200
+                return get_interests(client_ids), 200
 
             else:
                 return {"error": ERRORS[INVALID_REQUEST]}, 422
@@ -368,7 +362,7 @@ class OnlineScoreRequest(object):
     def hasGenderBirthdayFields(self):
         return True if self.gender is not None and self.birthday != "" else False
 
-    def getScore(self, store):
+    def getScore(self):
 
         # Check we have correct arguments != ''
         is_correct_values = {
@@ -378,25 +372,24 @@ class OnlineScoreRequest(object):
         if len(is_correct_values) == 1 and True in is_correct_values:
 
             if self.hasPhoneEmailFields():
-                return {"score": get_score(store, self.phone, self.email)}, 200
+                return {"score": get_score(self.phone, self.email)}, 200
 
             if self.hasFirstLastNameFields():
                 return {
-                    "score": get_score(
-                        store,
-                        None,
-                        None,
-                        last_name=self.last_name,
-                        first_name=self.first_name,
-                    )
-                }, 200
+                           "score": get_score(
+                               None,
+                               None,
+                               last_name=self.last_name,
+                               first_name=self.first_name,
+                           )
+                       }, 200
 
             if self.hasGenderBirthdayFields():
                 return {
-                    "score": get_score(
-                        store, None, None, gender=self.gender, birthday=self.birthday
-                    )
-                }, 200
+                           "score": get_score(
+                               None, None, gender=self.gender, birthday=self.birthday
+                           )
+                       }, 200
 
             else:
                 return {"error": ERRORS[INVALID_REQUEST]}, 422
@@ -445,7 +438,7 @@ def check_auth(account_request):
     return False
 
 
-def method_handler(request, ctx, store):
+def method_handler(request, ctx):
     params = request["body"]
 
     try:
@@ -477,8 +470,8 @@ def method_handler(request, ctx, store):
     else:
 
         if (
-            account_request.method == "online_score"
-            and account_request.login != "admin"
+                account_request.method == "online_score"
+                and account_request.login != "admin"
         ):
             requires_fields = [
                 "phone",
@@ -499,13 +492,13 @@ def method_handler(request, ctx, store):
                 {"has": [attr for attr in requires_fields if attr in [*request_args]]}
             )
 
-            result = score.getScore(store)
+            result = score.getScore()
 
             return result
 
         elif (
-            account_request.method == "online_score"
-            and account_request.login == "admin"
+                account_request.method == "online_score"
+                and account_request.login == "admin"
         ):
             return {"score": 42}, OK
 
@@ -526,7 +519,7 @@ def method_handler(request, ctx, store):
                 }
             )
 
-            interests_result = interests.getInterests(store, interests.client_ids)
+            interests_result = interests.getInterests(interests.client_ids)
 
             return interests_result
 
@@ -539,26 +532,10 @@ def get_request_id(headers):
     return headers.get("HTTP_X_REQUEST_ID", uuid.uuid4().hex)
 
 
-def is_redis_available(redis_connection):
-    try:
-        redis_connection.ping()
-        return True
-    except (
-        redis.exceptions.ConnectionError,
-        ConnectionRefusedError,
-        redis.exceptions.TimeoutError,
-    ):
-        return False
-    return False
-
-
 class MainHTTPHandler(BaseHTTPRequestHandler):
     """ Method -> this is an URL like in http://localhost:8080/method """
 
     router = {"method": method_handler}
-
-    store = redis.Redis("127.0.0.1", socket_connect_timeout=1, port=6379, db=0)
-    redis_available_status = is_redis_available(store)
 
     def do_POST(self):
 
@@ -579,14 +556,10 @@ class MainHTTPHandler(BaseHTTPRequestHandler):
 
             if path in self.router:
                 try:
-                    if not self.redis_available_status:
-                        response, code = {}, BAD_GATEWAY
-                    else:
-                        response, code = self.router[path](
-                            {"body": request, "headers": self.headers},
-                            context,
-                            self.store,
-                        )
+                    response, code = self.router[path](
+                        {"body": request, "headers": self.headers},
+                        context
+                    )
 
                 except AttributeError:
                     logging.error("Unexpected error - Invalid request")

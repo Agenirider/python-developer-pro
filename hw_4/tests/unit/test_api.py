@@ -5,18 +5,7 @@ import functools
 import api
 import hashlib
 
-
-def is_redis_available(redis_connection):
-    try:
-        redis_connection.ping()
-        return True
-    except (
-        redis.exceptions.ConnectionError,
-        ConnectionRefusedError,
-        redis.exceptions.TimeoutError,
-    ):
-        return False
-    return False
+from scoring import get_store, is_redis_available
 
 
 def cases(cases):
@@ -36,7 +25,7 @@ class TestSuite(unittest.TestCase):
     def setUp(self):
         self.context = {}
         self.headers = {}
-        self.store = redis.Redis("127.0.0.1", socket_connect_timeout=1, port=6379, db=0)
+        self.store = get_store()
 
     def test_redis_available(self):
         store = redis.Redis("127.0.0.1", socket_connect_timeout=1, port=6379, db=0)
@@ -48,8 +37,7 @@ class TestSuite(unittest.TestCase):
 
     def get_response(self, request):
         return api.method_handler(
-            {"body": request, "headers": self.headers}, self.context, self.store
-        )
+            {"body": request, "headers": self.headers}, self.context)
 
     def test_empty_request(self):
         _, code = self.get_response({})
@@ -126,16 +114,12 @@ class TestSuite(unittest.TestCase):
             "arguments": arguments,
         }
 
-        if is_redis_available(self.store):
-            self.set_valid_auth(request)
-            response, code = self.get_response(request)
-            self.assertEqual(api.OK, code, arguments)
-            score = float(response.get("score"))
-            self.assertTrue(score >= 0, arguments)
-            self.assertEqual(sorted(self.context["has"]), sorted(arguments.keys()))
-        else:
-            pass
-
+        self.set_valid_auth(request)
+        response, code = self.get_response(request)
+        self.assertEqual(api.OK, code, arguments)
+        score = float(response.get("score"))
+        self.assertTrue(score >= 0, arguments)
+        self.assertEqual(sorted(self.context["has"]), sorted(arguments.keys()))
 
     def test_empty_request(self):
         _, code = self.get_response({})

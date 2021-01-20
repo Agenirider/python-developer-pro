@@ -11,4 +11,5 @@ pip install -r requirements.txt
 
 
 ### Start tests
-python.exe -m unittest -v test.py
+- python.exe -m unittest -v test.py
+- python -m unittest discover -s tests/integration
