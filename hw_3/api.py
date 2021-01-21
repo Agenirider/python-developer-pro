@@ -160,9 +160,6 @@ class GenderField(object):
             else:
                 setattr(instance, self.name, None)
 
-    def __delete__(self, instance):
-        raise AttributeError("Can't delete attribute")
-
 
 class ClientIDsField(object):
     def __init__(self, name, required):
@@ -191,9 +188,6 @@ class ClientIDsField(object):
                 setattr(instance, self.name, self.default)
         else:
             setattr(instance, self.name, self.default)
-
-    def __delete__(self, instance):
-        raise AttributeError("Can't delete attribute")
 
 
 class DateField(object):
@@ -346,7 +340,6 @@ def check_auth(account_request):
 
 
 def request_handler(account_request, request_args, ctx):
-
     if account_request.method == 'online_score' and account_request.login != 'admin':
         requires_fields = ['phone', 'email', 'first_name', 'last_name', 'birthday', 'gender']
         attrs = [request_args[x] if x in [*request_args] else None for x in requires_fields]
