@@ -71,18 +71,18 @@ def parse_config(args):
     return config
 
 
-def gzip_unpacker(directory, file):
+def gzip_unpacker(directory, source_file):
     """Unpack log file
 
+    :param source_file: sorce file name
     :param directory: log directory
     :type directory: str
-    :param file: file name
     :type file: str
     :return: parsed file
     :rtype: list
     """
 
-    full_file_path = f"{directory}/{file}" if directory is not None else file
+    full_file_path = f"{directory}/{source_file}" if directory is not None else source_file
 
     if len(re.findall(".gz$", full_file_path)) == 1:
         file_opener = partial(gzip.open, mode="rb")
@@ -95,7 +95,7 @@ def gzip_unpacker(directory, file):
 
 
 def log_finder(configurations, logger=None):
-    """Find log file with appropriate signature
+    """Findlog file with appropriate signature
 
     Required log signatures - nginx-access-ui.log
 
@@ -105,7 +105,7 @@ def log_finder(configurations, logger=None):
     :type logger: object, optional
     """
 
-    current_date = datetime.now().strftime("%Y%m%d")
+    current_date = datetime.today().strftime("%Y%m%d")
     file_signature = "nginx-access-ui.log-" + current_date
 
     register_date = register_reader(logger=None)
@@ -144,6 +144,7 @@ def log_finder(configurations, logger=None):
         except FileNotFoundError:
             #  No log folder
             logger.error("Log folder not found") if logger is not None else None
+            return None, None
 
 
 def tmp_cleaner(configurations, logger=None):
@@ -303,12 +304,12 @@ def register_writer(result_status, logger=None):
 
     if result_status is not False:
         try:
-            with open("./log_analyzer/register", "w") as register_file:
+            with open("./register", "w") as register_file:
                 register_file.writelines(result_status)
 
         except FileNotFoundError:
             logger.error(
-                f"NOT FOUND REGISTER FILE FOR WRITING"
+                "NOT FOUND REGISTER FILE FOR WRITING"
             ) if logger is not None else None
 
 
@@ -345,7 +346,7 @@ def main():
 
     # SET LOGGER
     logging.basicConfig(
-        format="%(asctime)s] %(levelname).1s %(message)s",
+        format="%(asctime)s %(levelname).1s %(message)s",
         datefmt="%Y.%m.%d %H:%M:%S",
         filename=config.get("DEFAULT", "LOG_FILE"),
         level=logging.INFO,
@@ -355,18 +356,18 @@ def main():
 
     logger.info("Start process %s" % time.ctime())
 
-    file, file_name_data = log_finder(config, logger=logger)
+    log_file, file_name_data = log_finder(config, logger=logger)
 
     try:
-        if file is not None:
+        if log_file is not None:
             # Copy file to TMP dir
             shutil.copyfile(
-                f'{config.get("DEFAULT", "LOG_DIR")}/{file}',
-                f'{config.get("DEFAULT", "TMP_DIR")}/{file}',
+                f'{config.get("DEFAULT", "LOG_DIR")}/{log_file}',
+                f'{config.get("DEFAULT", "TMP_DIR")}/{log_file}',
             )
 
             # Unpacking the log file
-            data = gzip_unpacker(config.get("DEFAULT", "TMP_DIR"), file)
+            data = gzip_unpacker(config.get("DEFAULT", "TMP_DIR"), log_file)
 
             # Parsing rows
             parsed_rows = log_parser(data, logger=logger)
@@ -376,7 +377,7 @@ def main():
             REPORT_RESULT.sort(key=operator.itemgetter("time_sum"))
 
             rep_size = config.get("DEFAULT", "REPORT_SIZE")
-            res = REPORT_RESULT[(-1 * int(rep_size)) :]
+            res = REPORT_RESULT[(-1 * int(rep_size)):]
             logger.info("Write to the html file result %s" % len(REPORT_RESULT))
 
             file_writer(res[::-1], config, file_name_data)
