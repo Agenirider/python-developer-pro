@@ -1,78 +1,89 @@
+import _thread as thread
+import re
 import socket
-from utils import parse_args
-from utils import HTTPHandler
-
-import threading
 import sys
-import random
 
-
-class HTTPWorkerThread(threading.Thread):
-    """ Thread for requests """
-    def __init__(self, thread_name, thread_id):
-        threading.Thread.__init__(self)
-        self.thread_name = thread_name
-        self.thread_id = thread_id
-
-    def run(self):
-        print("START THREAD", str(self.thread_id))
-
-    def perform(self, connection, root_dir):
-        res = HTTPHandler(connection, root_dir)
-        if not res:
-            pass
-        else:
-            connection.sendall(res)
-            connection.close()
+from handler import HTTP_handler
+from utils import parse_args
 
 
 class MainWorker(object):
-    def __init__(self, host, port):
-        self.isWorking = True
-        self.args = parse_args(sys.argv[1:])
+    def __init__(self, host, port, args):
+        self.root_dir = ""
+        self.threads = []
+        self.args = args
         self.port = port
         self.host = host
-        self._server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.default_workers = 3
+        self.default_workers = 5
+        self.isWorking = True
 
-    def startServer(self):
-        root_dir, workers = self.args.r, self.args.w if self.args.w is not None else self.default_workers
+    def handleClient(self, connection, root_dir):
 
-        self._server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self._server.bind((self.host, self.port))
-        self._server.listen(workers)
-
-        threads = []
-
-        for x in range(workers):
-            thread = HTTPWorkerThread(x, x)
-            thread.start()
-            threads.append(thread)
+        package = b""
+        BUFFER_SIZE = 128
+        END_OF_PACKET = b"\r\n\r\n"
 
         while True:
+            try:
+                chunk = connection.recv(BUFFER_SIZE)
+
+                if not chunk:
+                    break
+
+                if len(re.findall(END_OF_PACKET, chunk)) == 1 or chunk == b"":
+                    package += chunk
+                    reply = HTTP_handler(package, root_dir)
+                    connection.send(reply)
+                    break
+
+                else:
+                    package += chunk
+
+            except OSError:
+                pass
+
+        connection.close()
+
+    def dispatcher(self):
+        root_dir, workers = (
+            self.args.r,
+            self.args.w if self.args.w is not None else self.default_workers,
+        )
+
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server.bind((self.host, self.port))
+        server.listen(workers)
+
+        while True:
+            connection, address = server.accept()
+
             if self.isWorking:
-                connection, _ = self._server.accept()
-
-                handler = random.choice(threads)
-                handler.perform(connection, root_dir)
+                thread.start_new_thread(
+                    self.handleClient,
+                    (
+                        connection,
+                        root_dir,
+                    ),
+                )
             else:
-                [t.join() for t in threads]
+                server.close()
 
-        self._server.close()
-
-    def stopServer(self):
+    def stop_server(self):
         self.isWorking = False
+
 
 
 def main(host="localhost", port=80):
     print("SERVER STARTED")
     try:
-        MW = MainWorker(host, port)
-        MW.startServer()
+        args = parse_args(sys.argv[1:])
+        MW = MainWorker(host, port, args)
+        MW.dispatcher()
 
     except KeyboardInterrupt:
+        MW.stop_server()
         print("SERVER STOPPED")
-        MW.stopServer()
 
 
 if __name__ == "__main__":
