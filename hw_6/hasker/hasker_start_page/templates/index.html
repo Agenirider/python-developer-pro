@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="{% static "/css/nestor_sp.css" %}">
+    <title>Hasker</title>
+</head>
+<body>
+{% block foo %}
+   {% include "header.html" %}
+{% endblock %}
+
+    <div>START PAGE</div>
+</body>
+</html>
