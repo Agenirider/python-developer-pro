@@ -33,7 +33,7 @@ class UserManager(BaseUserManager):
 
 
 class HaskerUser(AbstractBaseUser, PermissionsMixin):
-    email = models.EmailField(max_length=30, primary_key=True)
+    email = models.EmailField(max_length=30, primary_key=True, db_index=True)
     first_name = models.CharField(max_length=30, blank=True, null=True)
     last_name = models.CharField(max_length=30, blank=True, null=True)
     password = models.CharField(max_length=30, blank=False, null=False)

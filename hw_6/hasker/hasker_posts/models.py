@@ -8,7 +8,7 @@ class Questions(models.Model):
     id = models.IntegerField(primary_key=True, auto_created=True)
     title = models.CharField(max_length=300, blank=False, null=False)
     contains = models.CharField(max_length=5000, blank=False, null=False)
-    author = models.ForeignKey(HaskerUser, on_delete=models.SET_NULL, blank=True, null=True)
+    author = models.ForeignKey(HaskerUser, on_delete=models.SET_NULL, blank=True, null=True, db_index=True)
     created = models.DateTimeField(default=timezone.now)
     tags = models.CharField(max_length=300, blank=True, null=True)
 
@@ -22,9 +22,9 @@ class Questions(models.Model):
 
 class Answers(models.Model):
     id = models.IntegerField(primary_key=True, auto_created=True)
-    question = models.ForeignKey(Questions, on_delete=models.SET_NULL, blank=True, null=True)
+    question = models.ForeignKey(Questions, on_delete=models.SET_NULL, blank=True, null=True, db_index=True)
     contains = models.CharField(max_length=5000, blank=False, null=False)
-    author = models.ForeignKey(HaskerUser, models.SET_NULL, blank=True, null=True)
+    author = models.ForeignKey(HaskerUser, models.SET_NULL, blank=True, null=True, db_index=True)
     created = models.DateTimeField(default=timezone.now)
     marker_is_correct = models.BooleanField(blank=True, null=True)
 
