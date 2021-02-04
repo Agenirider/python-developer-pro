@@ -2,7 +2,7 @@ import datetime
 import math
 
 from django.shortcuts import render
-from hasker_posts.models import Questions, Answers
+from hasker_posts.models import Questions, Answers, Tags
 
 
 def time_normalyser(secs):
@@ -26,16 +26,31 @@ def time_delta_generator(datetimeobj):
     return formatted_time
 
 
+def tags_decoder(tags):
+    result = []
+    if tags is not None:
+        for tag in tags.split(','):
+            t = list(Tags.objects.filter(id=tag).values())
+            result.append(t[0]['tag'])
+    return result
+
+
 def get_start_page(request):
     result = []
-    new_questions = list(Questions.objects.all().values()[:5])
+    new_questions = list(Questions.objects.select_related().all().values()[:5])
 
     for question in new_questions:
         new_q = question
-        tfc = {'time_from_creation': time_delta_generator(question['created'])}
+
         answers = Answers.objects.filter(question=question['id']).count()
-        new_q.update(tfc)
         new_q.update({'answers': answers})
+
+        tags = tags_decoder(question['tags'])
+        new_q.update({'tags': tags})
+
+        tfc = {'time_from_creation': time_delta_generator(question['created'])}
+        new_q.update(tfc)
+
         result.append(new_q)
 
     data = {'new_questions': result}

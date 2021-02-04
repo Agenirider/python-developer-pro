@@ -14,10 +14,11 @@
     <div>NEW QUESTIONS</div>
 
     {% block content %}
+    <div class="hasker-index-content">
 
         {% if new_questions %}
 
-        {% for q in new_questions %}
+            {% for q in new_questions %}
 
             <div class="hasker-index-content-question">
                 <div class="hasker-index-content-question-block">
@@ -39,7 +40,14 @@
                         {% endif %}
                         <br>Answers
                     </div>
-                    <div class="hasker-index-content-question-block-title">{{ q.title }}</div>
+                    <div class="hasker-index-content-question-block-title-tags">
+                        <div class="hasker-index-content-question-block-title">{{ q.title }}</div>
+                        <div class="hasker-index-content-question-block-tags">
+                        {% for tag in q.tags %}
+                            <div class="hasker-index-content-question-block-tag">{{ tag }}</div>
+                        {% endfor %}
+                        </div>
+                    </div>
 
                     <div class="hasker-index-content-question-block-creator">
                         <div class="hasker-index-content-question-block-creator-name">{{ q.author_id }}</div>
@@ -48,13 +56,30 @@
                 </div>
             </div>
 
-        {% endfor %}
+            {% endfor %}
 
-    </ul>
-    {% else %}
-      <p>There are no new questions.</p>
-    {% endif %}
-{% endblock %}
+
+        {% else %}
+         <p>There are no new questions.</p>
+
+        {% endif %}
+
+
+    </div>
+
+    <div class="hasker-index-trending">
+        <div class="hasker-index-trending-ask-btn">
+            <div class="hasker-header-signup-btn">Ask</div>
+        </div>
+        <div class="hasker-index-trending-title">Trending</div>
+        <div class="hasker-index-trending-ask-btn">
+            
+        </div>
+
+
+    </div>
+
+    {% endblock %}
 
 </body>
 </html>

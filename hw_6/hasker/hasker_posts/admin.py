@@ -4,17 +4,17 @@ from hasker_posts.models import Questions, Answers, Tags
 
 
 @admin.register(Questions)
-class HaskerUserAdmin(admin.ModelAdmin):
+class HaskerQuestions(admin.ModelAdmin):
     fields = ('title', 'contains', 'author', 'created', 'tags')
     list_display = ('id', 'title', 'contains', 'author', 'created', 'tags')
 
 @admin.register(Answers)
-class HaskerUserAdmin(admin.ModelAdmin):
+class HaskerAnswers(admin.ModelAdmin):
     fields = ('question', 'contains', 'author', 'created', 'marker_is_correct')
     list_display = ('id', 'question', 'contains', 'author', 'created', 'marker_is_correct')
 
 
 @admin.register(Tags)
-class HaskerUserAdmin(admin.ModelAdmin):
+class HaskerTags(admin.ModelAdmin):
     fields = ('tag', 'created')
     list_display = ('id', 'tag', 'created')

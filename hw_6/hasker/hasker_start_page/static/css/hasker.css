@@ -1,3 +1,7 @@
+body {
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
 .hasker-header {
     width: 100%;
     padding: 5px;
@@ -5,9 +9,13 @@
     display: inline-block;
 }
 
+hasker-header-title a {
+    text-decoration: none;
+    color: black;
+}
+
 .hasker-header-title {
     float: left;
-    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
     font-size: 35px;
     margin: 3px 50px 3px 5px;
     width: 40%;
@@ -31,11 +39,20 @@
     color: black;
 }
 
+
+.hasker-index-content {
+    display: inline-block;
+    width: 60%;
+    float: left;
+    margin-left: 10px;
+}
+
 .hasker-index-content-question {
 }
 
+
 .hasker-index-content-question-block {
-    width: 100%;
+    width: 90%;
     display: inline-block;
     background-color: #ddd;
     margin: 9px;
@@ -47,21 +64,52 @@
     float: left;
     width: 100px;
     margin-left: 10px;
+    text-align: center;
+    margin-top: 10px
 }
 
 .hasker-index-content-question-block-answers {
     float:left;
     width: 100px;
     margin-left: 10px;
+    text-align: center;
+    margin-top: 10px
+}
+
+.hasker-index-content-question-block-title-tags {
+    float:left;
+    width: 300px;
+
 }
 
 .hasker-index-content-question-block-title {
-    float:left;
-    width: 300px;
     font-size: 30px;
     font-weidht: bold;
 }
 
+
+.hasker-index-content-question-block-tag {
+    background-color: #48c1f0;
+    padding: 3px;
+    width: max-content;
+    border-radius: 3px;
+    margin: 3px;
+    float: left;
+}
+
+
 .hasker-index-content-question-block-creator {
     float:left;
+    margin-top: 10px;
+
+}
+
+.hasker-index-content-question-block-creator-time-from-creation {
+    float:left;
+    margin-top: 10px;
+}
+
+.hasker-index-trending {
+    width: 20%;
+    float: left;
 }
