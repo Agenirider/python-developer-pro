@@ -1,5 +1,15 @@
 <div class="hasker-header">
-    <div class="hasker-header-title ">Hasker</div>
-    <div class="hasker-header-search-form">Search</div>
-    <div class="hasker-header-signup-btn">SignUp</div>
+    <div class="hasker-header-title">Hasker</div>
+
+    <div class="hasker-header-search-form">
+        <form>
+            {% csrf_token %}
+            <input/>
+            SEARCH FORM</form>
+            <input type="submit" value="Set">
+    </div>
+
+    <div class="hasker-header-signup-btn">
+        <a href="/login">SignUp</a>
+    </div>
 </div>

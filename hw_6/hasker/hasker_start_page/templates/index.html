@@ -3,7 +3,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="{% static "/css/nestor_sp.css" %}">
+    <link rel="stylesheet" href="{% static "/css/hasker.css" %}">
     <title>Hasker</title>
 </head>
 <body>
@@ -11,6 +11,50 @@
    {% include "header.html" %}
 {% endblock %}
 
-    <div>START PAGE</div>
+    <div>NEW QUESTIONS</div>
+
+    {% block content %}
+
+        {% if new_questions %}
+
+        {% for q in new_questions %}
+
+            <div class="hasker-index-content-question">
+                <div class="hasker-index-content-question-block">
+
+                    <div class="hasker-index-content-question-block-votes">
+                        {% if q.votes %}
+                            {{ q.votes }}
+                        {% else %}
+                            0
+                        {% endif %}
+                        <br>Votes
+                    </div>
+
+                    <div class="hasker-index-content-question-block-answers">
+                        {% if q.answers %}
+                            {{ q.answers }}
+                        {% else %}
+                            0
+                        {% endif %}
+                        <br>Answers
+                    </div>
+                    <div class="hasker-index-content-question-block-title">{{ q.title }}</div>
+
+                    <div class="hasker-index-content-question-block-creator">
+                        <div class="hasker-index-content-question-block-creator-name">{{ q.author_id }}</div>
+                        <div class="hasker-index-content-question-block-creator-time-from-creation">{{ q.time_from_creation }}</div>
+                    </div>
+                </div>
+            </div>
+
+        {% endfor %}
+
+    </ul>
+    {% else %}
+      <p>There are no new questions.</p>
+    {% endif %}
+{% endblock %}
+
 </body>
 </html>

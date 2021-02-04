@@ -20,6 +20,7 @@ class Command(BaseCommand):
             title="Awesome code",
             contains="Whats a really cool code",
             author=hasker_user,
+            votes=10,
             tags=tag,
         )
 
@@ -27,4 +28,5 @@ class Command(BaseCommand):
             question=question,
             contains="Im agree",
             author=hasker_user,
+            votes=20
         )

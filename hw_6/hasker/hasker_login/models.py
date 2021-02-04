@@ -53,3 +53,6 @@ class HaskerUser(AbstractBaseUser, PermissionsMixin):
     def save(self, *args, **kwargs):
         super(HaskerUser, self).save(*args, **kwargs)
         return self
+
+    def get(self):
+        return self.first_name + self.last_name

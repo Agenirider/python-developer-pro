@@ -11,6 +11,7 @@ class Questions(models.Model):
     author = models.ForeignKey(HaskerUser, on_delete=models.SET_NULL, blank=True, null=True, db_index=True)
     created = models.DateTimeField(default=timezone.now)
     tags = models.CharField(max_length=300, blank=True, null=True)
+    votes = models.IntegerField(blank=True, null=True)
 
     def __str__(self):
         return str(self.id)
@@ -27,6 +28,7 @@ class Answers(models.Model):
     author = models.ForeignKey(HaskerUser, models.SET_NULL, blank=True, null=True, db_index=True)
     created = models.DateTimeField(default=timezone.now)
     marker_is_correct = models.BooleanField(blank=True, null=True)
+    votes = models.IntegerField(blank=True, null=True)
 
     def __str__(self):
         return str(self.id)
